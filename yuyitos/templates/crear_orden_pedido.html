@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% block title %}Crear Orden de Pedido - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        
+        <!-- ENCABEZADO -->
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-file-invoice"></i> Nueva Orden de Pedido</h2>
+                    <p class="text-muted mb-0">Registro de pedidos a proveedores</p>
+                </div>
+                <a href="{% url 'ordenes_pedido' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. SELECCIONAR PROVEEDOR -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-3">1. Seleccionar Proveedor</h4>
+            <select id="proveedor-select" class="form-select form-select-lg" onchange="cargarProductosProveedor()">
+                <option value="">Seleccione un proveedor...</option>
+                {% for p in proveedores %}
+                <option value="{{ p.id }}" data-rut="{{ p.rut }}">
+                    {{ p.nombre }} - RUT: {{ p.rut }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <div id="info-proveedor" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">RUT:</small>
+                        <p class="fw-bold mb-0" id="proveedor-rut"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Productos disponibles:</small>
+                        <p class="fw-bold mb-0" id="productos-count">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. AGREGAR PRODUCTOS -->
+        <div id="productos-container" class="card p-4 mb-4" style="display: none;">
+            <h4 class="fw-bold mb-4">2. Agregar Productos a la Orden</h4>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Solo se muestran productos del proveedor seleccionado
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Seleccionar Producto</label>
+                <select id="producto-select" class="form-select form-select-lg">
+                    <option value="">Seleccione un producto...</option>
+                </select>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Cantidad</label>
+                    <input type="number" id="cantidad-input" class="form-control form-control-lg" min="1" value="1">
+                </div>
+                
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Precio Unitario ($)</label>
+                    <input type="number" id="precio-input" class="form-control form-control-lg" min="0" step="0.01" value="0">
+                </div>
+                
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">&nbsp;</label>
+                    <button onclick="agregarProducto()" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. DETALLE DE LA ORDEN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">3. Detalle de la Orden</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-orden">
+                        <tr id="empty-row">
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <i class="fas fa-shopping-cart fa-3x mb-3 d-block"></i>
+                                <p class="mb-0">No hay productos agregados</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 4. RESUMEN Y TOTAL -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">4. Resumen de la Orden</h4>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">Total de Items</small>
+                        <span class="badge bg-primary fs-4" id="total-items">0</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">TOTAL ORDEN</small>
+                        <span class="text-primary fw-bold fs-3" id="total-orden">$0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <button onclick="procesarOrden()" class="btn btn-success btn-lg w-100" id="btn-procesar">
+                        <i class="fas fa-check-circle"></i> Generar Orden de Pedido
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <a href="{% url 'ordenes_pedido' %}" class="btn btn-outline-danger btn-lg w-100">
+                        <i class="fas fa-times-circle"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let carrito = [];
+let productosProveedor = [];
+
+async function cargarProductosProveedor() {
+    const select = document.getElementById('proveedor-select');
+    const proveedorId = select.value;
+    const infoProveedor = document.getElementById('info-proveedor');
+    const productosContainer = document.getElementById('productos-container');
+    const productoSelect = document.getElementById('producto-select');
+    
+    if (!proveedorId) {
+        infoProveedor.style.display = 'none';
+        productosContainer.style.display = 'none';
+        carrito = [];
+        actualizarTabla();
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/productos-proveedor/${proveedorId}/`);
+        const data = await response.json();
+        
+        if (data.success) {
+            productosProveedor = data.productos;
+            
+            // Mostrar info del proveedor
+            const option = select.options[select.selectedIndex];
+            document.getElementById('proveedor-rut').textContent = option.dataset.rut;
+            document.getElementById('productos-count').textContent = productosProveedor.length;
+            infoProveedor.style.display = 'block';
+            
+            // Cargar productos en el select
+            productoSelect.innerHTML = '<option value="">Seleccione un producto...</option>';
+            productosProveedor.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.dataset.codigo = p.codigo;
+                option.dataset.nombre = p.nombre;
+                option.dataset.precio = p.precio;
+                option.textContent = `${p.codigo} - ${p.nombre} (Stock: ${p.stock})`;
+                productoSelect.appendChild(option);
+            });
+            
+            productosContainer.style.display = 'block';
+            carrito = [];
+            actualizarTabla();
+        }
+    } catch (error) {
+        alert('Error al cargar productos: ' + error);
+    }
+}
+
+function agregarProducto() {
+    const proveedorId = document.getElementById('proveedor-select').value;
+    if (!proveedorId) {
+        alert('Primero debe seleccionar un proveedor');
+        return;
+    }
+    
+    const select = document.getElementById('producto-select');
+    const cantidad = parseInt(document.getElementById('cantidad-input').value);
+    const precio = parseFloat(document.getElementById('precio-input').value);
+    
+    if (!select.value) {
+        alert('Por favor seleccione un producto');
+        return;
+    }
+    
+    if (cantidad <= 0) {
+        alert('La cantidad debe ser mayor a 0');
+        return;
+    }
+    
+    if (precio < 0) {
+        alert('El precio no puede ser negativo');
+        return;
+    }
+    
+    const option = select.options[select.selectedIndex];
+    const productoId = select.value;
+    const codigo = option.dataset.codigo;
+    const nombre = option.dataset.nombre;
+    
+    // Verificar si ya existe en el carrito
+    const existe = carrito.find(item => item.producto_id === productoId);
+    if (existe) {
+        alert('Este producto ya está en la orden. Elimínelo primero si desea modificar la cantidad.');
+        return;
+    }
+    
+    carrito.push({
+        producto_id: productoId,
+        codigo: codigo,
+        nombre: nombre,
+        cantidad: cantidad,
+        precio: precio,
+        subtotal: cantidad * precio
+    });
+    
+    actualizarTabla();
+    
+    // Limpiar selección
+    select.value = '';
+    document.getElementById('cantidad-input').value = 1;
+    document.getElementById('precio-input').value = 0;
+}
+
+function eliminarItem(index) {
+    if (confirm('¿Eliminar este producto de la orden?')) {
+        carrito.splice(index, 1);
+        actualizarTabla();
+    }
+}
+
+function actualizarTabla() {
+    const tbody = document.getElementById('items-orden');
+    const emptyRow = document.getElementById('empty-row');
+    
+    if (carrito.length === 0) {
+        tbody.innerHTML = emptyRow.outerHTML;
+    } else {
+        let html = '';
+        carrito.forEach((item, index) => {
+            html += `
+                <tr>
+                    <td><code>${item.codigo}</code></td>
+                    <td class="fw-bold">${item.nombre}</td>
+                    <td><span class="badge bg-secondary">${item.cantidad}</span></td>
+                    <td>$${item.precio.toLocaleString('es-CL')}</td>
+                    <td class="fw-bold text-primary">$${item.subtotal.toLocaleString('es-CL')}</td>
+                    <td>
+                        <button onclick="eliminarItem(${index})" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Quitar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+    
+    actualizarResumen();
+}
+
+function actualizarResumen() {
+    const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    const total = carrito.reduce((sum, item) => sum + item.subtotal, 0);
+    
+    document.getElementById('total-items').textContent = totalItems;
+    document.getElementById('total-orden').textContent = `$${total.toLocaleString('es-CL')}`;
+}
+
+async function procesarOrden() {
+    const proveedorId = document.getElementById('proveedor-select').value;
+    
+    if (!proveedorId) {
+        alert('Debe seleccionar un proveedor');
+        return;
+    }
+    
+    if (carrito.length === 0) {
+        alert('Debe agregar al menos un producto');
+        return;
+    }
+    
+    const total = carrito.reduce((sum, item) => sum + item.subtotal, 0);
+    const confirmacion = confirm(`¿Confirmar orden de pedido por $${total.toLocaleString('es-CL')}?`);
+    if (!confirmacion) return;
+    
+    const data = {
+        proveedor_id: proveedorId,
+        items: carrito
+    };
+    
+    const btnProcesar = document.getElementById('btn-procesar');
+    btnProcesar.disabled = true;
+    btnProcesar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    
+    try {
+        const response = await fetch('{% url "crear_orden_pedido" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            window.location.href = '{% url "ordenes_pedido" %}';
+        } else {
+            alert('Error: ' + result.error);
+            btnProcesar.disabled = false;
+            btnProcesar.innerHTML = '<i class="fas fa-check-circle"></i> Generar Orden de Pedido';
+        }
+    } catch (error) {
+        alert('Error al procesar la orden: ' + error);
+        btnProcesar.disabled = false;
+        btnProcesar.innerHTML = '<i class="fas fa-check-circle"></i> Generar Orden de Pedido';
+    }
+}
+</script>
+{% endblock %}

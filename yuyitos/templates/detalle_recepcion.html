@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Recepción #{{ recepcion.id }} - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+
+        <!-- ENCABEZADO -->
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-boxes"></i> Recepción de Productos #{{ recepcion.id }}</h2>
+                    <p class="text-muted mb-0">Fecha: {{ recepcion.fecha_recepcion|date:"d/m/Y H:i" }}</p>
+                </div>
+                <a href="{% url 'recepciones' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- INFORMACIÓN DE LA ORDEN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Información de la Orden</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Orden de Pedido:</small>
+                    <p class="fw-bold mb-0">
+                        #{{ recepcion.orden.id }}
+                        <a href="{% url 'detalle_orden_pedido' recepcion.orden.id %}" class="btn btn-sm btn-outline-primary ms-2">
+                            <i class="fas fa-eye"></i> Ver Orden
+                        </a>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Fecha de la Orden:</small>
+                    <p class="fw-bold mb-0">{{ recepcion.orden.fecha|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <small class="text-muted">Proveedor:</small>
+                    <p class="fw-bold mb-0">{{ recepcion.orden.proveedor.nombre }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">RUT Proveedor:</small>
+                    <p class="fw-bold mb-0">{{ recepcion.orden.proveedor.rut }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- COMPARACIÓN: ORDENADO VS RECIBIDO -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Comparación: Ordenado vs Recibido</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cantidad Ordenada</th>
+                            <th>Cantidad Recibida</th>
+                            <th>Diferencia</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in comparacion %}
+                        <tr>
+                            <td><code>{{ item.producto.codigo }}</code></td>
+                            <td class="fw-bold">{{ item.producto.nombre }}</td>
+                            <td>
+                                <span class="badge bg-primary">{{ item.cantidad_ordenada }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">{{ item.cantidad_recibida }}</span>
+                            </td>
+                            <td>
+                                {% if item.diferencia == 0 %}
+                                    <span class="badge bg-success">0</span>
+                                {% elif item.diferencia > 0 %}
+                                    <span class="badge bg-info">+{{ item.diferencia }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{{ item.diferencia }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.completo %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> Completo
+                                    </span>
+                                {% elif item.cantidad_recibida == 0 %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times-circle"></i> No Recibido
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-exclamation-triangle"></i> Parcial
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RESUMEN DE LA RECEPCIÓN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Resumen de la Recepción</h4>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">Productos Esperados</small>
+                        <span class="badge bg-primary fs-4">{{ comparacion|length }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 bg-success bg-opacity-10 rounded text-center">
+                        <small class="text-muted d-block mb-2">Productos Recibidos</small>
+                        <span class="badge bg-success fs-4">
+                            {% for item in comparacion %}{% if item.cantidad_recibida > 0 %}1{% endif %}{% endfor %}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 bg-info bg-opacity-10 rounded text-center">
+                        <small class="text-muted d-block mb-2">Total Unidades Recibidas</small>
+                        <span class="badge bg-info fs-4">
+                            {% for item in comparacion %}{{ item.cantidad_recibida }}{% if not forloop.last %}+{% endif %}{% endfor %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ALERTAS Y OBSERVACIONES -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-3">Observaciones</h4>
+            
+            {% with completos=0 parciales=0 faltantes=0 %}
+                {% for item in comparacion %}
+                    {% if item.completo %}
+                        {% with completos=completos|add:1 %}{% endwith %}
+                    {% elif item.cantidad_recibida == 0 %}
+                        {% with faltantes=faltantes|add:1 %}{% endwith %}
+                    {% else %}
+                        {% with parciales=parciales|add:1 %}{% endwith %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if faltantes > 0 or parciales > 0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> <strong>Atención:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% if faltantes > 0 %}
+                            <li>{{ faltantes }} producto(s) no fueron recibidos</li>
+                            {% endif %}
+                            {% if parciales > 0 %}
+                            <li>{{ parciales }} producto(s) fueron recibidos parcialmente</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle"></i> <strong>Recepción Completa:</strong>
+                        Todos los productos fueron recibidos en las cantidades ordenadas.
+                    </div>
+                {% endif %}
+            {% endwith %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

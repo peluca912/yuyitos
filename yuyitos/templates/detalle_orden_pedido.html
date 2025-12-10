@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Orden #{{ orden.id }} - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+
+        <!-- ENCABEZADO -->
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-file-invoice"></i> Orden de Pedido #{{ orden.id }}</h2>
+                    <p class="text-muted mb-0">Fecha: {{ orden.fecha|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div>
+                    {% if not tiene_recepcion %}
+                    <a href="{% url 'crear_recepcion' orden.id %}" class="btn btn-success me-2">
+                        <i class="fas fa-box-open"></i> Recibir Productos
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'ordenes_pedido' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- INFORMACIÓN DEL PROVEEDOR -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Información del Proveedor</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Nombre:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.nombre }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">RUT:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.rut }}</p>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Contacto:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.contacto }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Rubro:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.rubro }}</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <small class="text-muted">Dirección:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.direccion }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADO DE LA ORDEN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-3">Estado de la Orden</h4>
+            <div class="p-3 rounded text-center {% if tiene_recepcion %}bg-success bg-opacity-10{% else %}bg-warning bg-opacity-10{% endif %}">
+                {% if tiene_recepcion %}
+                    <i class="fas fa-check-circle text-success fa-3x mb-2"></i>
+                    <p class="fw-bold text-success fs-5 mb-0">RECIBIDA</p>
+                    <small class="text-muted">Los productos de esta orden ya fueron recibidos</small>
+                {% else %}
+                    <i class="fas fa-clock text-warning fa-3x mb-2"></i>
+                    <p class="fw-bold text-warning fs-5 mb-0">PENDIENTE DE RECEPCIÓN</p>
+                    <small class="text-muted">Esta orden está esperando la llegada de productos</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- DETALLE DE PRODUCTOS -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Detalle de Productos</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Descripción</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detalle in detalles %}
+                        <tr>
+                            <td><code>{{ detalle.producto.codigo }}</code></td>
+                            <td class="fw-bold">{{ detalle.producto.nombre }}</td>
+                            <td>{{ detalle.producto.descripcion|default:"Sin descripción" }}</td>
+                            <td><span class="badge bg-secondary">{{ detalle.cantidad }}</span></td>
+                            <td>${{ detalle.precio|floatformat:0 }}</td>
+                            <td class="fw-bold text-primary">${{ detalle.subtotal|floatformat:0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="5" class="text-end fw-bold fs-5">TOTAL:</td>
+                            <td class="fw-bold text-primary fs-5">${{ total|floatformat:0 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- ACCIONES -->
+        {% if not tiene_recepcion %}
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-3">Acciones Disponibles</h4>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Esta orden está pendiente de recepción. 
+                Cuando lleguen los productos, haz clic en el botón "Recibir Productos" para registrar la recepción.
+            </div>
+            <a href="{% url 'crear_recepcion' orden.id %}" class="btn btn-success btn-lg w-100">
+                <i class="fas fa-box-open"></i> Recibir Productos de esta Orden
+            </a>
+        </div>
+        {% else %}
+        <div class="card p-4 mb-4">
+            <div class="alert alert-success mb-0">
+                <i class="fas fa-check-circle"></i> Esta orden ya fue procesada. 
+                <a href="{% url 'recepciones' %}" class="alert-link">Ver todas las recepciones</a>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

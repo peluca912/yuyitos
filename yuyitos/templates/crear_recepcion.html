@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Recibir Orden #{{ orden.id }} - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        
+        <!-- ENCABEZADO -->
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-box-open"></i> Recepción de Productos</h2>
+                    <p class="text-muted mb-0">Orden de Pedido #{{ orden.id }} - {{ orden.proveedor.nombre }}</p>
+                </div>
+                <a href="{% url 'detalle_orden_pedido' orden.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- INFORMACIÓN DE LA ORDEN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Información de la Orden</h4>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <small class="text-muted">Proveedor:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.nombre }}</p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">RUT:</small>
+                    <p class="fw-bold mb-0">{{ orden.proveedor.rut }}</p>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">Fecha Orden:</small>
+                    <p class="fw-bold mb-0">{{ orden.fecha|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRODUCTOS DE LA ORDEN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Productos a Recibir</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cantidad Ordenada</th>
+                            <th>Cantidad Recibida</th>
+                            <th>Stock Actual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-tabla">
+                        {% for detalle in detalles_orden %}
+                        <tr>
+                            <td><code>{{ detalle.producto.codigo }}</code></td>
+                            <td class="fw-bold">{{ detalle.producto.nombre }}</td>
+                            <td>
+                                <span class="badge bg-primary" id="ordenada-{{ detalle.producto.id }}">
+                                    {{ detalle.cantidad }}
+                                </span>
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       class="form-control cantidad-recibida" 
+                                       data-producto-id="{{ detalle.producto.id }}"
+                                       data-cantidad-max="{{ detalle.cantidad }}"
+                                       min="0" 
+                                       max="{{ detalle.cantidad }}" 
+                                       value="0"
+                                       onchange="validarCantidad(this)">
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ detalle.producto.stock }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RESUMEN -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Resumen de Recepción</h4>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">Productos en la Orden</small>
+                        <span class="badge bg-primary fs-4">{{ detalles_orden.count }}</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">Total a Recibir</small>
+                        <span class="text-primary fw-bold fs-3" id="total-recibir">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTONES DE ACCIÓN -->
+        <div class="card p-4 mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <button onclick="procesarRecepcion()" class="btn btn-success btn-lg w-100" id="btn-procesar">
+                        <i class="fas fa-check-circle"></i> Confirmar Recepción
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <a href="{% url 'detalle_orden_pedido' orden.id %}" class="btn btn-outline-danger btn-lg w-100">
+                        <i class="fas fa-times-circle"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function validarCantidad(input) {
+    const max = parseInt(input.dataset.cantidadMax);
+    const valor = parseInt(input.value);
+    
+    if (valor < 0) {
+        input.value = 0;
+        alert('La cantidad no puede ser negativa');
+    } else if (valor > max) {
+        input.value = max;
+        alert(`La cantidad recibida no puede exceder la cantidad ordenada (${max})`);
+    }
+    
+    actualizarResumen();
+}
+
+function actualizarResumen() {
+    const inputs = document.querySelectorAll('.cantidad-recibida');
+    let total = 0;
+    
+    inputs.forEach(input => {
+        total += parseInt(input.value) || 0;
+    });
+    
+    document.getElementById('total-recibir').textContent = total + ' unidades';
+}
+
+async function procesarRecepcion() {
+    const inputs = document.querySelectorAll('.cantidad-recibida');
+    const items = [];
+    let tieneProductos = false;
+    
+    inputs.forEach(input => {
+        const cantidad = parseInt(input.value) || 0;
+        if (cantidad > 0) {
+            tieneProductos = true;
+            items.push({
+                producto_id: input.dataset.productoId,
+                cantidad_recibida: cantidad
+            });
+        }
+    });
+    
+    if (!tieneProductos) {
+        alert('Debe ingresar al menos una cantidad recibida mayor a 0');
+        return;
+    }
+    
+    const confirmacion = confirm(
+        `¿Confirmar recepción de ${items.length} producto(s)?\n\n` +
+        'Esta acción actualizará el stock automáticamente y no se puede deshacer.'
+    );
+    
+    if (!confirmacion) return;
+    
+    const data = { items: items };
+    
+    const btnProcesar = document.getElementById('btn-procesar');
+    btnProcesar.disabled = true;
+    btnProcesar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    
+    try {
+        const response = await fetch('{% url "crear_recepcion" orden.id %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            window.location.href = '{% url "recepciones" %}';
+        } else {
+            alert('Error: ' + result.error);
+            btnProcesar.disabled = false;
+            btnProcesar.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Recepción';
+        }
+    } catch (error) {
+        alert('Error al procesar la recepción: ' + error);
+        btnProcesar.disabled = false;
+        btnProcesar.innerHTML = '<i class="fas fa-check-circle"></i> Confirmar Recepción';
+    }
+}
+
+// Actualizar resumen al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    actualizarResumen();
+});
+</script>
+{% endblock %}

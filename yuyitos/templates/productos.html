@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Productos - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <h2 class="fw-bold mb-0"><i class="fas fa-box"></i> Catálogo de Productos</h2>
+        {% if user.is_superuser %}
+        <a href="/admin/mainApp/producto/add/" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus"></i> Nuevo Producto
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card p-4 mb-4">
+    <form method="GET" class="d-flex gap-2">
+        <input type="text" name="q" value="{{ query }}" placeholder="Buscar por nombre o código..." class="form-control">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> Buscar
+        </button>
+    </form>
+</div>
+
+{% if productos %}
+<div class="row g-4">
+    {% for p in productos %}
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm hover-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h5 class="card-title fw-bold">{{ p.nombre }}</h5>
+                    <span class="badge {% if p.stock > 20 %}bg-success{% elif p.stock > 10 %}bg-warning{% else %}bg-danger{% endif %}">
+                        Stock: {{ p.stock }}
+                    </span>
+                </div>
+                
+                <p class="text-muted mb-2"><small>Código: {{ p.codigo }}</small></p>
+                <p class="text-muted mb-3"><i class="fas fa-tag"></i> {{ p.categoria.nombre }}</p>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3 class="text-primary mb-0">${{ p.precio|floatformat:0 }}</h3>
+                    {% if user.is_superuser %}
+                    <a href="/admin/mainApp/producto/{{ p.id }}/change/" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i> Editar
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card p-5 text-center">
+    <i class="fas fa-box-open fa-5x text-muted mb-4"></i>
+    <h3>No hay productos registrados</h3>
+    <p class="text-muted">Comienza agregando productos desde el panel de administración</p>
+</div>
+{% endif %}
+{% endblock %}

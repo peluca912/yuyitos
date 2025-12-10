@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Detalle Venta {{ venta.numero_boleta }} - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+
+        <!-- ENCABEZADO -->
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-receipt"></i> Detalle de Venta</h2>
+                    <p class="text-muted mb-0">Boleta N° {{ venta.numero_boleta }}</p>
+                </div>
+                <a href="{% url 'ventas' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- INFORMACIÓN GENERAL -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Información General</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Cliente:</small>
+                    <p class="fw-bold mb-0">{{ venta.cliente.nombre }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Vendedor:</small>
+                    <p class="fw-bold mb-0">{{ venta.vendedor.username }}</p>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Fecha:</small>
+                    <p class="fw-bold mb-0">{{ venta.fecha|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Tipo de Pago:</small>
+                    <p class="mb-0">
+                        <span class="badge {% if venta.tipo_pago == 'contado' %}bg-success{% else %}bg-warning{% endif %}">
+                            {{ venta.get_tipo_pago_display }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            {% if venta.tipo_pago == 'credito' %}
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Estado del Crédito:</small>
+                    <p class="mb-0">
+                        <span class="badge {% if venta.estado_credito == 'CANCELADA' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ venta.estado_credito }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <hr>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">TOTAL DE LA VENTA:</h5>
+                <h3 class="text-primary mb-0">${{ venta.total|floatformat:0 }}</h3>
+            </div>
+        </div>
+
+        <!-- PRODUCTOS VENDIDOS -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Productos Vendidos</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detalle in detalles %}
+                        <tr>
+                            <td><code>{{ detalle.producto.codigo }}</code></td>
+                            <td>{{ detalle.producto.nombre }}</td>
+                            <td><span class="badge bg-secondary">{{ detalle.cantidad }}</span></td>
+                            <td>${{ detalle.precio_unitario|floatformat:0 }}</td>
+                            <td class="fw-bold text-primary">${{ detalle.subtotal|floatformat:0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold fs-5">TOTAL:</td>
+                            <td class="fw-bold text-primary fs-5">${{ venta.total|floatformat:0 }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- INFORMACIÓN DEL CLIENTE (solo si es crédito) -->
+        {% if venta.cliente and venta.tipo_pago == 'credito' %}
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">Información del Cliente</h4>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Nombre Completo:</small>
+                    <p class="fw-bold mb-0">{{ venta.cliente.nombre }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">RUT:</small>
+                    <p class="fw-bold mb-0">{{ venta.cliente.rut }}</p>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Teléfono:</small>
+                    <p class="fw-bold mb-0">{{ venta.cliente.telefono }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Email:</small>
+                    <p class="fw-bold mb-0">{{ venta.cliente.email|default:"No registrado" }}</p>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <small class="text-muted">Deuda Actual:</small>
+                    <p class="fw-bold text-danger fs-5 mb-0">${{ venta.cliente.deuda_actual|floatformat:0 }}</p>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Límite de Crédito:</small>
+                    <p class="fw-bold fs-5 mb-0">${{ venta.cliente.limite_credito|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

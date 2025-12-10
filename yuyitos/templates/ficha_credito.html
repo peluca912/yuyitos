@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Ficha Crédito - {{ cliente.nombre }}{% endblock %}
+
+{% block content %}
+
+<div class="card p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="fas fa-credit-card"></i> Ficha de Crédito</h2>
+            <p class="text-muted mb-0">Registro de pagos y ventas a crédito del cliente</p>
+        </div>
+        <a href="{% url 'clientes' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="card p-4 mb-4">
+    <h4 class="fw-bold mb-3">Información del Cliente</h4>
+    <div class="row">
+        <div class="col-md-4">
+            <small class="text-muted">Nombre Completo:</small>
+            <p class="fw-bold">{{ cliente.nombre }} {{ cliente.apellido }}</p>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted">RUT:</small>
+            <p class="fw-bold">{{ cliente.rut }}</p>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted">Deuda Actual:</small>
+            <p class="fw-bold {% if cliente.deuda_actual > 0 %}text-danger{% else %}text-success{% endif %}">
+                ${{ cliente.deuda_actual|floatformat:0 }}
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="card p-4 mb-4">
+    <h4 class="fw-bold mb-3">Ventas a Crédito</h4>
+
+    {% if ventas_credito %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>N° Boleta</th>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in ventas_credito %}
+                <tr>
+                    <td><span class="badge bg-primary">{{ v.numero_boleta }}</span></td>
+                    <td>{{ v.fecha|date:"d/m/Y H:i" }}</td>
+                    <td class="fw-bold">${{ v.total|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge {% if v.estado_credito == 'CANCELADA' %}bg-success{% else %}bg-warning{% endif %}">
+                            {{ v.estado_credito }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'detalle_venta' v.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> Ver
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> No tiene ventas a crédito registradas.
+    </div>
+    {% endif %}
+</div>
+
+<div class="card p-4 mb-4">
+    <h4 class="fw-bold mb-3">Historial de Abonos</h4>
+
+    {% if abonos %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha</th>
+                    <th>N° Boleta</th>
+                    <th>Monto Abonado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in abonos %}
+                <tr>
+                    <td>{{ a.fecha|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if a.numero_boleta %}
+                            <span class="badge bg-secondary">{{ a.numero_boleta }}</span>
+                        {% else %}
+                            <span class="text-muted">No especificado</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-bold text-success">${{ a.monto|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> No tiene abonos registrados.
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

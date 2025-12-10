@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Venta - Yuyitos{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        
+        <!-- ENCABEZADO -->
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold mb-1"><i class="fas fa-cash-register"></i> Registrar Nueva Venta</h2>
+                    <p class="text-muted mb-0">Vendedor:  <span class="fw-bold text-dark">{{ user.username }}</span></p>
+                </div>
+                <a href="{% url 'ventas' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. TIPO DE PAGO -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-3">1. Tipo de Pago</h4>
+            <select id="tipo-pago" class="form-select form-select-lg" onchange="toggleCliente()">
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito</option>
+            </select>
+        </div>
+
+        <!-- 2. CLIENTE (solo si es crédito) -->
+        <div id="cliente-container" class="card p-4 mb-4">
+            <h4 class="fw-bold mb-3">2. Seleccionar Cliente</h4>
+            <select id="cliente-select" class="form-select form-select-lg">
+                <option value="">Seleccione un cliente...</option>
+                {% for c in clientes %}
+                <option value="{{ c.id }}">
+                    {{ c.nombre }} - Deuda: ${{ c.deuda_actual|floatformat:0 }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- 3. AGREGAR PRODUCTOS -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">3. Agregar Productos</h4>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Seleccionar Producto</label>
+                <select id="producto-select" class="form-select form-select-lg">
+                    <option value="">Busca y selecciona un producto...</option>
+                    {% for p in productos %}
+                    <option value="{{ p.id }}" 
+                            data-nombre="{{ p.nombre }}" 
+                            data-precio="{{ p.precio }}"
+                            data-stock="{{ p.stock }}">
+                        {{ p.nombre }} - ${{ p.precio|floatformat:0 }} (Stock: {{ p.stock }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Cantidad</label>
+                    <input type="number" id="cantidad-input" class="form-control form-control-lg" min="1" value="1">
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">&nbsp;</label>
+                    <button onclick="agregarProducto()" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-plus"></i> Agregar al Carrito
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. CARRITO DE PRODUCTOS -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">4. Carrito de Compra</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-venta">
+                        <tr id="empty-row">
+                            <td colspan="5" class="text-center text-muted py-5">
+                                <i class="fas fa-shopping-cart fa-3x mb-3 d-block"></i>
+                                <p class="mb-0">No hay productos agregados</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 5. RESUMEN Y TOTAL -->
+        <div class="card p-4 mb-4">
+            <h4 class="fw-bold mb-4">5. Resumen de la Venta</h4>
+            
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">Total de Items</small>
+                        <span class="badge bg-primary fs-4" id="total-items">0</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded text-center">
+                        <small class="text-muted d-block mb-2">TOTAL A PAGAR</small>
+                        <span class="text-primary fw-bold fs-3" id="total-venta">$0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <button onclick="procesarVenta()" class="btn btn-success btn-lg w-100" id="btn-procesar">
+                        <i class="fas fa-check-circle"></i> Procesar Venta
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <a href="{% url 'ventas' %}" class="btn btn-outline-danger btn-lg w-100">
+                        <i class="fas fa-times-circle"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+let carrito = [];
+
+function toggleCliente() {
+    const tipoPago = document.getElementById('tipo-pago').value;
+    const clienteContainer = document.getElementById('cliente-container');
+    
+    if (tipoPago === 'credito') {
+        clienteContainer.style.display = 'block';
+    } else {
+        clienteContainer.style.display = 'none';
+    }
+}
+
+function agregarProducto() {
+    const select = document.getElementById('producto-select');
+    const cantidad = parseInt(document.getElementById('cantidad-input').value);
+    
+    if (!select.value) {
+        alert('Por favor seleccione un producto');
+        return;
+    }
+    
+    if (cantidad <= 0) {
+        alert('La cantidad debe ser mayor a 0');
+        return;
+    }
+    
+    const option = select.options[select.selectedIndex];
+    const productoId = select.value;
+    const nombre = option.dataset.nombre;
+    const precio = parseFloat(option.dataset.precio);
+    const stock = parseInt(option.dataset.stock);
+    
+    if (cantidad > stock) {
+        alert(`Stock insuficiente. Disponible: ${stock} unidades`);
+        return;
+    }
+    
+    // Verificar si ya existe en el carrito
+    const existe = carrito.find(item => item.producto_id === productoId);
+    if (existe) {
+        existe.cantidad += cantidad;
+        existe.subtotal = existe.cantidad * existe.precio;
+    } else {
+        carrito.push({
+            producto_id: productoId,
+            nombre: nombre,
+            cantidad: cantidad,
+            precio: precio,
+            subtotal: cantidad * precio
+        });
+    }
+    
+    actualizarTabla();
+    
+    // Limpiar selección
+    select.value = '';
+    document.getElementById('cantidad-input').value = 1;
+}
+
+function eliminarItem(index) {
+    if (confirm('¿Eliminar este producto del carrito?')) {
+        carrito.splice(index, 1);
+        actualizarTabla();
+    }
+}
+
+function actualizarTabla() {
+    const tbody = document.getElementById('items-venta');
+    const emptyRow = document.getElementById('empty-row');
+    
+    if (carrito.length === 0) {
+        tbody.innerHTML = emptyRow.outerHTML;
+    } else {
+        let html = '';
+        carrito.forEach((item, index) => {
+            html += `
+                <tr>
+                    <td class="fw-bold">${item.nombre}</td>
+                    <td><span class="badge bg-secondary">${item.cantidad}</span></td>
+                    <td>$${item.precio.toLocaleString('es-CL')}</td>
+                    <td class="fw-bold text-primary">$${item.subtotal.toLocaleString('es-CL')}</td>
+                    <td>
+                        <button onclick="eliminarItem(${index})" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash"></i> Quitar
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+    
+    actualizarResumen();
+}
+
+function actualizarResumen() {
+    const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+    const total = carrito.reduce((sum, item) => sum + item.subtotal, 0);
+    
+    document.getElementById('total-items').textContent = totalItems;
+    document.getElementById('total-venta').textContent = `$${total.toLocaleString('es-CL')}`;
+}
+
+async function procesarVenta() {
+    if (carrito.length === 0) {
+        alert('Debe agregar al menos un producto');
+        return;
+    }
+    
+    const tipoPago = document.getElementById('tipo-pago').value;
+    const clienteId = document.getElementById('cliente-select').value;
+    
+    // Cliente obligatorio siempre
+    if (!clienteId) {
+        alert('Debe seleccionar un cliente');
+        return;
+    }
+    
+    const total = carrito.reduce((sum, item) => sum + item.subtotal, 0);
+    const confirmacion = confirm(`¿Confirmar venta por $${total.toLocaleString('es-CL')}?`);
+    if (!confirmacion) return;
+    
+    const data = {
+        tipo_pago: tipoPago,
+        cliente_id: clienteId,
+        total: total,
+        items: carrito
+    };
+    
+    const btnProcesar = document.getElementById('btn-procesar');
+    btnProcesar.disabled = true;
+    btnProcesar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    
+    try {
+        const response = await fetch('{% url "registrar_venta" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(result.message);
+            window.location.href = '{% url "ventas" %}';
+        } else {
+            alert('Error: ' + result.error);
+            btnProcesar.disabled = false;
+            btnProcesar.innerHTML = '<i class="fas fa-check-circle"></i> Procesar Venta';
+        }
+    } catch (error) {
+        alert('Error al procesar la venta: ' + error);
+        btnProcesar.disabled = false;
+        btnProcesar.innerHTML = '<i class="fas fa-check-circle"></i> Procesar Venta';
+    }
+}
+</script>
+{% endblock %}
